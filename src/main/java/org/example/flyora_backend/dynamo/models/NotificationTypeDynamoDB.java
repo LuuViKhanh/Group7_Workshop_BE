@@ -1,0 +1,17 @@
+package org.example.flyora_backend.dynamo.models;
+
+import org.example.flyora_backend.dynamo.SafeIntegerConverter;
+
+import lombok.Setter;
+import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
+
+@DynamoDbBean
+@Setter
+public class NotificationTypeDynamoDB {
+    private Integer id; private String description;
+    @DynamoDbPartitionKey @DynamoDbAttribute("id") @DynamoDbConvertedBy(SafeIntegerConverter.class)
+    public Integer getId() { return id; }
+    
+    @DynamoDbAttribute("description") public String getDescription() { return description; }
+
+}

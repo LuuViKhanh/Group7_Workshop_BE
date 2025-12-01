@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Hủy Thanh Toán</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; text-align: center; }
+    .status { font-size: 1.5rem; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>🛑 Hủy Thanh Toán</h1>
+  <p>Đang xử lý hủy đơn hàng...</p>
+  <div class="status" id="status"></div>
+
+  <script>
+    (async () => {
+      const params = new URLSearchParams(window.location.search);
+      const orderCode = params.get("orderCode");
+
+      if (!orderCode) {
+        document.getElementById("status").textContent = "❌ Thiếu orderCode trong URL.";
+        return;
+      }
+
+      try {
+        const response = await fetch(`http://localhost:8080/api/v1/payment/cancel?orderCode=${orderCode}`);
+        const result = await response.json();
+
+        if (response.ok && result.status === "CANCELLED") {
+          document.getElementById("status").textContent = `Đã hủy đơn hàng #${result.orderCode}.`;
+        } else if (result.status === "PAID") {
+          document.getElementById("status").textContent = `Đơn hàng đã được thanh toán, không thể hủy.`;
+        } else {
+          document.getElementById("status").textContent = `Không thể hủy đơn hàng: ${result.message || 'Không xác định'}`;
+        }
+      } catch (error) {
+        console.error(error);
+        document.getElementById("status").textContent = "Lỗi hệ thống khi xử lý yêu cầu.";
+      }
+    })();
+  </script>
+</body>
+</html>
