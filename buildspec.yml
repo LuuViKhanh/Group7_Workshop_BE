@@ -1,0 +1,65 @@
+version: 0.2
+
+# Environment variables that can be configured in CodeBuild project settings
+# or overridden here. You can add secrets from AWS Systems Manager Parameter Store
+# or AWS Secrets Manager.
+env:
+  variables:
+    MAVEN_OPTS: "-Xmx1024m"
+  # parameter-store:
+  #   DB_HOST: /flyora/prod/db/host
+  #   DB_USERNAME: /flyora/prod/db/username
+  #   DB_PASSWORD: /flyora/prod/db/password
+
+phases:
+  install:
+    runtime-versions:
+      java: corretto17
+    commands:
+      - echo "Installing dependencies..."
+      - echo "Setting up Java environment..."
+      - export JAVA_HOME=$JAVA_HOME_17_X64
+      - export PATH=$JAVA_HOME/bin:$PATH
+      - echo "Java version:"
+      - java -version
+      - echo "JAVA_HOME is set to $JAVA_HOME"
+      - echo "Checking Maven wrapper:"
+      - chmod +x mvnw
+      - ./mvnw -version
+
+  pre_build:
+    commands:
+      - echo "Pre-build phase started on `date`"
+      - echo "Running tests..."
+      # Uncomment the line below if you want to run tests during build
+      # - ./mvnw test
+
+  build:
+    commands:
+      - echo "Build phase started on `date`"
+      - echo "Building the application..."
+      - ./mvnw clean package -DskipTests
+      - echo "Build completed successfully"
+
+  post_build:
+    commands:
+      - echo "Post-build phase started on `date`"
+      - echo "Listing target directory contents:"
+      - ls -la target/
+      - echo "Build completed on `date`"
+
+# Artifacts to be uploaded to S3 or passed to deployment stage
+artifacts:
+  files:
+    - target/Flyora_Backend-0.0.1-SNAPSHOT.jar
+    - Dockerfile
+    - .mvn/**/*
+    - mvnw
+    - mvnw.cmd
+  name: flyora-backend-$(date +%Y%m%d-%H%M%S)
+  discard-paths: no
+
+# Cache Maven dependencies to speed up subsequent builds
+cache:
+  paths:
+    - '/root/.m2/**/*'
