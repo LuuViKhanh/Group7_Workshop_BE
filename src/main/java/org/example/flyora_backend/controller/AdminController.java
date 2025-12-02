@@ -1,6 +1,7 @@
 package org.example.flyora_backend.controller;
 
 import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -106,31 +107,54 @@ public class AdminController {
     @GetMapping("/logs")
     public ResponseEntity<?> getAccessLogs(@RequestParam Integer requesterId) {
         verifyAdmin(requesterId);
-
+        
         List<AccessLogDTO> logs = accessLogRepository.findAll().stream()
                 .map(log -> {
                     AccessLogDTO dto = new AccessLogDTO();
                     dto.setAccountId(log.getAccountId());
 
-                    accountRepository.findById(log.getAccountId()).ifPresent(acc -> dto.setUsername(acc.getUsername()));
+                    accountRepository.findById(log.getAccountId())
+                            .ifPresent(acc -> dto.setUsername(acc.getUsername()));
 
                     dto.setAction(log.getAction());
 
+                    String ts = log.getTimestamp();
+                    // 1. Thử parse ISO-8601 (2025-07-05T15:43:19Z)
                     try {
-                        dto.setTimestamp(Instant.parse(log.getTimestamp())
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDateTime());
-                    } catch (Exception e) {
-                        dto.setTimestamp(LocalDateTime.ofInstant(
-                                Instant.ofEpochMilli(Long.parseLong(log.getTimestamp())),
-                                ZoneId.systemDefault()));
+                        dto.setTimestamp(
+                                Instant.parse(ts)
+                                        .atZone(ZoneId.systemDefault())
+                                        .toLocalDateTime()
+                        );
+                    }
+                    catch (Exception e1) {
+                        // 2. Thử parse SQL datetime (2025-07-05 15:43:19)
+                        try {
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                            dto.setTimestamp(LocalDateTime.parse(ts, formatter));
+                        }
+                        catch (Exception e2) {
+                            // 3. Thử parse Epoch milliseconds (1712345678901)
+                            try {
+                                dto.setTimestamp(
+                                        LocalDateTime.ofInstant(
+                                                Instant.ofEpochMilli(Long.parseLong(ts)),
+                                                ZoneId.systemDefault()
+                                        )
+                                );
+                            }
+                            catch (Exception e3) {
+                                // 4. Bó tay → báo lỗi chính xác
+                                throw new RuntimeException("Invalid timestamp format: " + ts);
+                            }
+                        }
                     }
                     return dto;
                 })
                 .collect(Collectors.toList());
-
         return ResponseEntity.ok(logs);
     }
+
 
     @PostMapping("/news")
     public ResponseEntity<?> createNews(@RequestBody CreateNewsDTO dto, @RequestParam Integer requesterId) {
