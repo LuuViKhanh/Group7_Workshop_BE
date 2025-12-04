@@ -19,4 +19,7 @@ public interface OwnerService {
     public void deleteProduct(Integer productId, Integer accountId);
     
     List<OwnerProductListDTO> searchProductsByOwner(Integer accountId, String keyword);
+
+    List<TopProductDTO> getTopSellingProductsByOwner(Integer accountId);
+
 }

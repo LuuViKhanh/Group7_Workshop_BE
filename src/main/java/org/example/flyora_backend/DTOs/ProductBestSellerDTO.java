@@ -10,3 +10,4 @@ public record ProductBestSellerDTO(
     Integer totalSold,
     String imageUrl
 ) {}
+ 

@@ -188,4 +188,40 @@ public class ProductRepository extends AbstractDynamoRepository<ProductDynamoDB>
         }
         return null;
     }
+
+    public List<TopProductDTO> findTopSellingProductsByShopOwnerId(Integer shopOwnerId) {
+        return this.findAll().stream()
+                .filter(p -> p.getShopOwnerId() != null && p.getShopOwnerId().equals(shopOwnerId))
+                .map(p -> {
+                    String catName = getCategoryName(p.getCategoryId());
+                    String img = getImageUrl(p.getId(), catName);
+
+                    return new TopProductDTO(
+                            p.getId(),
+                            p.getName(),
+                            img,
+                            p.getSalesCount() != null ? p.getSalesCount() : 0,
+                            p.getPrice()
+                    );
+                })
+                .sorted((a, b) -> Integer.compare(b.getTotalSold(), a.getTotalSold()))
+                .collect(Collectors.toList());
+    }
+
+    public List<ProductDynamoDB> findRawByShopOwnerId(Integer ownerId) {
+        try {
+            return table.index("shop_owner_id-index")
+                    .query(QueryConditional.keyEqualTo(k -> k.partitionValue(ownerId)))
+                    .stream()
+                    .flatMap(p -> p.items().stream())
+                    .sorted(Comparator.comparingInt(ProductDynamoDB::getId))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            return findAll().stream()
+                    .filter(p -> ownerId.equals(p.getShopOwnerId()))
+                    .sorted(Comparator.comparingInt(ProductDynamoDB::getId))
+                    .collect(Collectors.toList());
+        }
+    }
+
 }

@@ -1,6 +1,8 @@
 package org.example.flyora_backend.service;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.example.flyora_backend.DTOs.CreateProductDTO;
 import org.example.flyora_backend.DTOs.OwnerProductListDTO;
@@ -258,4 +260,55 @@ public class OwnerServiceImpl implements OwnerService {
             }
         }
     }
+
+    @Override
+    public List<TopProductDTO> getTopSellingProductsByOwner(Integer accountId) {
+        ShopOwnerDynamoDB owner = shopOwnerRepository.findByAccountId(accountId)
+                .orElseThrow(() -> new RuntimeException("ShopOwner không tồn tại"));
+
+        Integer shopOwnerId = owner.getId();
+
+        // Lấy product dạng RAW (DynamoDB objects)
+        List<ProductDynamoDB> products = productRepository.findRawByShopOwnerId(shopOwnerId);
+
+        if (products.isEmpty()) return Collections.emptyList();
+
+        List<Integer> productIds = products.stream()
+                .map(ProductDynamoDB::getId)
+                .collect(Collectors.toList());
+
+        Map<Integer, Integer> salesMap = orderItemRepository.findTotalSalesForProducts(productIds);
+
+        return products.stream()
+                .map(p -> {
+                    String catName = categoryRepository.findById(p.getCategoryId())
+                            .map(ProductCategoryDynamoDB::getName).orElse("Unknown");
+                    String imageUrl = getImageUrl(p.getId(), catName);
+                    Integer totalSold = salesMap.getOrDefault(p.getId(), 0);
+
+                    return new TopProductDTO(
+                            p.getId(),
+                            p.getName(),
+                            imageUrl,
+                            totalSold,
+                            p.getPrice()
+                    );
+                })
+                .sorted((a, b) -> b.getTotalSold() - a.getTotalSold())
+                .collect(Collectors.toList());
+    }
+
+
+    // helper trong cùng class OwnerServiceImpl (nếu chưa có, thêm private method)
+    private String getImageUrl(Integer productId, String categoryName) {
+        if ("FOODS".equalsIgnoreCase(categoryName)) {
+            return foodDetailRepository.findByProductId(productId).map(FoodDetailDynamoDB::getImageUrl).orElse(null);
+        } else if ("TOYS".equalsIgnoreCase(categoryName)) {
+            return toyDetailRepository.findByProductId(productId).map(ToyDetailDynamoDB::getImageUrl).orElse(null);
+        } else if ("FURNITURE".equalsIgnoreCase(categoryName)) {
+            return furnitureDetailRepository.findByProductId(productId).map(FurnitureDetailDynamoDB::getImageUrl).orElse(null);
+        }
+        return null;
+    }
+
 }

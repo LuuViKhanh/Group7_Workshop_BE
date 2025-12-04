@@ -59,19 +59,29 @@ public class OwnerController {
                 ❌ Nếu token không hợp lệ: trả về HTTP 401 (UNAUTHORIZED)
             """)
     @GetMapping("/dashboard/products/top-sales")
-    public ResponseEntity<List<TopProductDTO>> getTopSellingProducts(@RequestHeader("Authorization") String token) {
+    public ResponseEntity<List<TopProductDTO>> getTopSellingProducts(
+            @RequestHeader("Authorization") String token) {
         try {
             AccountDynamoDB account = jwtUtil.getAccountFromToken(token);
 
+            // Chỉ ShopOwner được xem
+            if (account.getRoleId() != 2) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
 
-            List<TopProductDTO> topProducts = ownerService.getTopSellingProducts();
-            accessLogService.logAction(account.getId(), "Viewed dashboard - top-selling products");
+            List<TopProductDTO> topProducts =
+                    ownerService.getTopSellingProductsByOwner(account.getId());
+
+            accessLogService.logAction(account.getId(),
+                    "Viewed dashboard - top-selling products");
 
             return ResponseEntity.ok(topProducts);
+
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
     }
+
 
     @Operation(summary = "Thêm sản phẩm mới", description = """
                 ✅ Dành cho ShopOwner:
