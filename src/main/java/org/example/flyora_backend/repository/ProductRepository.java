@@ -145,7 +145,10 @@ public class ProductRepository extends AbstractDynamoRepository<ProductDynamoDB>
             dto.setCategory(catName);
             
             // Gọi thêm hàm lấy tên BirdType nếu cần (dto.setBirdType...)
-            String birdName = birdTypeRepo.findById(p.getBirdTypeId()).map(BirdTypeDynamoDB::getName).orElse("Unknown");
+            String birdName = "Unknown";
+            if (p.getBirdTypeId() != null) {
+                birdName = birdTypeRepo.findById(p.getBirdTypeId()).map(BirdTypeDynamoDB::getName).orElse("Unknown");
+            }
             dto.setBirdType(birdName);
 
             dto.setImageUrl(getImageUrl(p.getId(), catName));
